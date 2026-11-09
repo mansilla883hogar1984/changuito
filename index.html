@@ -1,0 +1,92 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mi Changuito</title><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1f7a5c">
+<style>
+:root{--g:#1f7a5c;--gl:#e3f2ec;--o:#ffb703;--bg:#f4f7f5;--t:#17302a;--m:#6b7f78;--c:#fff;--b:#dbe5e0}
+@media(prefers-color-scheme:dark){:root{--bg:#101a17;--t:#e6f1ec;--m:#93a8a0;--c:#18262a;--b:#2a3b36;--gl:#1d3a30}}
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;background:var(--bg);color:var(--t);padding-bottom:70px}
+header{position:sticky;top:0;z-index:5;background:var(--g);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 10px 8px}
+.top{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;margin-bottom:6px}
+.sr{display:flex;gap:6px}input,select{font:inherit;color:var(--t);background:var(--c);border:1px solid var(--b);border-radius:10px;padding:9px;width:100%}
+.sr button{background:var(--o);border:0;border-radius:10px;padding:0 14px;font-size:18px}
+main{padding:10px}h3{margin:14px 4px 6px;color:var(--g);font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+.r{display:flex;align-items:center;gap:10px;background:var(--c);border:1px solid var(--b);border-radius:12px;padding:10px;margin-bottom:6px}
+.r>span:first-of-type{flex:1;min-width:0}.r small{display:block;color:var(--m)}.r input[type=checkbox]{width:22px;height:22px;flex:none}
+.qty{display:flex;align-items:center;gap:6px}.qty button,.ic{background:var(--gl);border:0;border-radius:8px;width:32px;height:32px;font-size:17px;color:var(--t)}
+.btn{background:var(--g);color:#fff;border:0;border-radius:12px;padding:12px 16px;font:inherit;font-weight:600;width:100%;margin:6px 0}.btn.s{background:var(--gl);color:var(--t)}.btn.d{background:#c0392b}
+.card{background:var(--c);border:1px solid var(--b);border-radius:14px;padding:14px;margin-bottom:8px}.big{font-size:26px;font-weight:700}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--c);border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:8px 0;font-size:11px;color:var(--m)}nav button b{display:block;font-size:20px}nav .on{color:var(--g);font-weight:700}
+dialog{border:0;border-radius:16px;width:min(92vw,440px);background:var(--bg);color:var(--t);padding:16px}dialog::backdrop{background:#0008}
+label.f{display:block;margin:8px 0 2px;color:var(--m);font-size:12px}video{width:100%;border-radius:12px}.bar{height:8px;background:var(--gl);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--g)}
+</style></head><body>
+<header><div class="top"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h3l2.5 12h11L21 6H6"/><circle cx="9" cy="20" r="1.5" fill="#ffb703" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="#ffb703" stroke="none"/></svg>Mi Changuito<span id="st" style="font-size:12px;font-weight:400"></span><button onclick="load()" title="Actualizar" style="margin-left:auto;background:none;border:0;color:#fff;font-size:20px">🔄</button></div>
+<div class="sr"><input id="q" type="search" placeholder="Buscar por nombre, marca o EAN" oninput="bq(this.value)"><button onclick="scan()" title="Escanear">📷</button></div></header>
+<main id="m"></main>
+<nav id="nv"></nav><dialog id="dlg"></dialog>
+<script>
+const $=s=>document.querySelector(s),E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),N=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
+F=n=>Math.round(n).toLocaleString('es-AR'),D=s=>s?String(s).split('-').reverse().join('/'):'',today=()=>new Date().toISOString().slice(0,10);
+let S={p:[],g:[],l:[],h:[],d:[]},tab='lista',q='',U=localStorage.u||'',T=localStorage.t||'',cmp=null,ss={},cam=null;
+const TABS=[['lista','🛒','Lista'],['prod','📦','Productos'],['stock','🏠','Stock'],['sug','💡','Sugerir'],['an','📊','Análisis'],['aj','⚙️','Ajustes']];
+const api=async(a,d)=>{const j=await(await fetch(U,{method:'POST',body:JSON.stringify({token:T,a,d})})).json();if(j.error)throw j.error;return j};
+async function load(){if(!U){tab='aj';return render()}try{S=await api('all');$('#st').textContent=''}catch(e){$('#st').textContent=' ⚠ '+e}if(!$('#dlg').open&&tab!='aj')render()}
+const mt=p=>{const t=N(q);return !t||N([p.Nombre,p.Marca,p.Contenido_Unidad,p.Grupo,p.Codigo_EAN,p.Lugar_Compra].join(' ')).includes(t)};
+const gp=p=>S.p.find(x=>x.ID_Producto==p),num=v=>Number(v)||0,isL=p=>p.En_Lista_Compras===true;
+function upd(id,ch){Object.assign(gp(id),ch);render();api('prods',{rows:[{ID_Producto:id,...ch}]}).catch(e=>alert(e)).then(load)}
+const tg=(id,k,v)=>upd(id,{[k]:v}),qt=(id,d)=>upd(id,{Cantidad_A_Comprar:Math.max(1,(num(gp(id).Cantidad_A_Comprar)||1)+d)}),
+sk=(id,d)=>upd(id,{Cantidad_Actual:Math.max(0,num(gp(id).Cantidad_Actual)+d)});
+function bq(v){q=v;if(tab=='an'||tab=='aj')tab='prod';render()}
+function empty(){return q?`<div class="card">No encontré “${E(q)}”.<button class="btn" onclick="nuevo()">➕ Crear “${E(q)}”</button></div>`:'<div class="card">Nada por acá todavía.</div>'}
+function grp(ps,fn){const g={};ps.forEach(p=>(g[p.Grupo]??=[]).push(p));return Object.keys(g).sort().map(k=>`<h3>${E(k)}</h3>`+g[k].sort((a,b)=>a.Nombre>b.Nombre?1:-1).map(fn).join('')).join('')}
+const th=p=>p.Foto_URL?`<img src="https://drive.google.com/thumbnail?id=${E(p.Foto_URL)}&sz=w120" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none">`:'';
+const sub=p=>E([p.Marca,p.Contenido_Unidad].filter(Boolean).join(' · '))+(p.Lugar_Compra?' · 📍'+E(p.Lugar_Compra):'');
+const V={
+lista(){const A=S.p.filter(isL),L=A.filter(mt),c=A.filter(p=>p.Comprado===true).length;
+return `<div class="card"><b>${c} de ${A.length} comprados</b><div class="bar"><i style="width:${A.length?c/A.length*100:0}%"></i></div><button class="btn" onclick="cierre()">✅ Cerrar compra</button></div>`+(L.length?grp(L,p=>`<label class="r"><input type="checkbox" ${p.Comprado===true?'checked':''} onchange="tg('${p.ID_Producto}','Comprado',this.checked)">${th(p)}<span><b>${E(p.Nombre)}</b><small>${sub(p)}</small></span><span class="qty"><button onclick="event.preventDefault();qt('${p.ID_Producto}',-1)">−</button>${num(p.Cantidad_A_Comprar)||1}<button onclick="event.preventDefault();qt('${p.ID_Producto}',1)">+</button></span><button class="ic" onclick="event.preventDefault();tg('${p.ID_Producto}','En_Lista_Compras',false)">✕</button></label>`):empty())},
+prod(){const L=S.p.filter(mt);return `<button class="btn s" onclick="nuevo()">➕ Nuevo producto</button>`+(L.length?grp(L,p=>`<div class="r">${th(p)}<span onclick="form('${p.ID_Producto}')"><b>${E(p.Nombre)}</b><small>${sub(p)}${p.Codigo_EAN?' · '+E(p.Codigo_EAN):''}</small></span><button class="ic" onclick="tg('${p.ID_Producto}','En_Lista_Compras',${!isL(p)})">${isL(p)?'✅':'🛒'}</button></div>`):empty())},
+stock(){const L=S.p.filter(mt);return L.length?grp(L,p=>`<div class="r"><span onclick="form('${p.ID_Producto}')"><b>${E(p.Nombre)}</b><small>${sub(p)} · mínimo ${num(p.Stock_Minimo)}</small></span><span class="qty"><button onclick="sk('${p.ID_Producto}',-1)">−</button><b>${num(p.Cantidad_Actual)}</b><button onclick="sk('${p.ID_Producto}',1)">+</button></span></div>`):empty()},
+sug(){const L=sugs().filter(x=>mt(x.p));return `<button class="btn" onclick="pasar()">Pasar seleccionados a la lista (${L.filter(x=>ss[x.p.ID_Producto]!==false).length})</button><div style="display:flex;gap:6px"><button class="btn s" onclick="sa(true)">Todos</button><button class="btn s" onclick="sa(false)">Ninguno</button></div>`+(L.length?L.map(x=>`<label class="r"><input type="checkbox" ${ss[x.p.ID_Producto]!==false?'checked':''} onchange="ss['${x.p.ID_Producto}']=this.checked;render()"><span><b>${E(x.p.Nombre)}</b><small>${E(x.why)} · sugerido ${x.qty}</small></span></label>`).join(''):'<div class="card">Sin sugerencias por ahora. Todo en orden 👌</div>')},
+an(){const H=[...S.h].sort((a,b)=>a.Fecha>b.Fecha?1:a.Fecha<b.Fecha?-1:0);if(!H.length)return '<div class="card">Cuando cierres tu primera compra, el resumen aparece acá.</div>';
+const c=H.find(x=>x.ID_Compra==cmp)||H.at(-1),i=H.indexOf(c),pv=H[i-1],it=S.d.filter(r=>r.ID_Compra==c.ID_Compra),tot=it.reduce((a,r)=>a+num(r.Cantidad),0)||1,g={};it.forEach(r=>g[r.Grupo]=(g[r.Grupo]||0)+num(r.Cantidad));
+const df=pv&&num(pv.Monto_Total)?Math.round((num(c.Monto_Total)/num(pv.Monto_Total)-1)*100):null;
+return `<select onchange="cmp=this.value;render()">${H.slice().reverse().map(x=>`<option value="${E(x.ID_Compra)}" ${x==c?'selected':''}>${D(x.Fecha)} · ${E(x.Lugar)} · $${F(num(x.Monto_Total))}</option>`).join('')}</select>
+<div class="card" style="margin-top:8px"><small>${D(c.Fecha)} · ${E(c.Lugar)}</small><div class="big">$${F(num(c.Monto_Total))}</div>${df===null?'':`<small>${df>=0?'▲':'▼'} ${Math.abs(df)}% respecto de la compra anterior</small>`}</div>
+<h3>Gasto por grupo</h3>`+Object.entries(g).sort((a,b)=>b[1]-a[1]).map(([k,u])=>{const p=Math.round(u/tot*100);return `<div class="card"><div style="display:flex;justify-content:space-between"><b>${E(k)}</b><span>${p}% · $${F(num(c.Monto_Total)*u/tot)}</span></div><div class="bar"><i style="width:${p}%"></i></div></div>`}).join('')+`<h3>Qué compré (${tot} unidades)</h3>`+it.map(r=>`<div class="r"><span><b>${E(r.Producto)}</b><small>${E(r.Grupo)} · 📍${E(r.Lugar)}</small></span><b>×${num(r.Cantidad)}</b></div>`).join('')},
+aj(){const lst=(t,a,l)=>`<h3>${l}</h3>`+a.map(v=>`<div class="r"><span>${E(v)}</span><button class="ic" onclick="nm('${t}','ren','${E(v).replace(/'/g,"\\'")}')">✎</button><button class="ic" onclick="nm('${t}','del','${E(v).replace(/'/g,"\\'")}')">🗑</button></div>`).join('')+`<button class="btn s" onclick="nm('${t}','add')">➕ Agregar</button>`;
+return lst('g',S.g,'Grupos')+lst('l',S.l,'Lugares de compra')+`<h3>Conexión</h3><div class="card"><label class="f">Dirección de la app (Apps Script)</label><input id="cu" value="${E(U)}"><label class="f">Clave</label><input id="ct" type="password" value="${E(T)}"><button class="btn" onclick="cfg()">Guardar y conectar</button></div>`}};
+function render(){$('#m').innerHTML=V[tab]();$('#nv').innerHTML=TABS.map(([k,i,l])=>`<button class="${k==tab?'on':''}" onclick="tab='${k}';render();scrollTo(0,0)"><b>${i}</b>${l}</button>`).join('')}
+function sugs(){const by={};S.d.forEach(r=>(by[r.ID_Producto]??=new Set()).add(r.Fecha+'|'+r.ID_Compra));
+return S.p.filter(p=>!isL(p)).map(p=>{const st=num(p.Cantidad_Actual),mn=num(p.Stock_Minimo);let why='';
+if(st<=mn)why='Stock crítico';else{const ds=[...(by[p.ID_Producto]||[])].map(x=>+new Date(x.split('|')[0])).sort();if(ds.length>1){const fr=(ds.at(-1)-ds[0])/864e5/(ds.length-1);if((Date.now()-ds.at(-1))/864e5>=fr&&st<=mn+1)why='Reposición habitual (cada '+Math.round(fr)+' días)'}}
+return why&&{p,why,qty:Math.max(1,mn+1-st)}}).filter(Boolean)}
+const sa=v=>{sugs().forEach(x=>ss[x.p.ID_Producto]=v);render()};
+function pasar(){const r=sugs().filter(x=>ss[x.p.ID_Producto]!==false).map(x=>({ID_Producto:x.p.ID_Producto,En_Lista_Compras:true,Cantidad_A_Comprar:x.qty,Comprado:false}));if(!r.length)return;r.forEach(x=>Object.assign(gp(x.ID_Producto),x));ss={};tab='lista';render();api('prods',{rows:r}).catch(e=>alert(e)).then(load)}
+const opt=(a,v)=>a.map(x=>`<option ${x==v?'selected':''}>${E(x)}</option>`).join('');
+function nuevo(){const n=q.trim();form(null,/^\d{6,14}$/.test(n)?{Codigo_EAN:n}:{Nombre:n})}
+let pf=null;
+function pick(i){const f=i.files[0];if(!f)return;const im=new Image();im.onload=()=>{const k=Math.min(1,480/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);pf=c.toDataURL('image/jpeg',.7).split(',')[1];$('#pv').src='data:image/jpeg;base64,'+pf;$('#pv').style.display='block'};im.src=URL.createObjectURL(f)}
+function form(id,pre={}){pf=null;const p=id?gp(id):{Cantidad_Actual:0,Stock_Minimo:1,...pre};const d=$('#dlg');
+d.innerHTML=`<h3 style="margin-top:0">${id?'Editar':'Nuevo'} producto</h3><img id="pv" style="display:${p.Foto_URL?'block':'none'};width:100%;max-height:220px;object-fit:contain;border-radius:12px" ${p.Foto_URL?`src="https://drive.google.com/thumbnail?id=${E(p.Foto_URL)}&sz=w400"`:''}><label class="btn s" style="display:block;text-align:center">📷 ${p.Foto_URL?'Cambiar':'Sacar'} foto<input type="file" accept="image/*" capture="environment" hidden onchange="pick(this)"></label><label class="f">Nombre</label><input id="f1" value="${E(p.Nombre)}"><label class="f">Grupo</label><select id="f2">${opt(S.g,p.Grupo)}</select><label class="f">Contenido (ej. 500 ml)</label><input id="f3" value="${E(p.Contenido_Unidad)}"><label class="f">Marca</label><input id="f4" value="${E(p.Marca)}"><label class="f">Código EAN</label><input id="f5" inputmode="numeric" value="${E(p.Codigo_EAN)}"><label class="f">Lugar de compra habitual</label><select id="f6">${opt(S.l,p.Lugar_Compra)}</select><label class="f">Stock mínimo</label><input id="f7" type="number" min="0" value="${num(p.Stock_Minimo)}"><button class="btn" onclick="guardar('${id||''}')">Guardar</button>${id?`<button class="btn d" onclick="borrar('${id}')">Eliminar</button>`:''}<button class="btn s" onclick="$('#dlg').close()">Cancelar</button>`;d.showModal()}
+function guardar(id){const n=$('#f1').value.trim();if(!n)return alert('Poné un nombre');
+if(!id){const mx=Math.max(0,...S.p.map(p=>+String(p.ID_Producto).replace(/\D/g,'')||0))+1;id='PROD-'+String(mx).padStart(3,'0');}
+const r={ID_Producto:id,Nombre:n,Grupo:$('#f2').value,Contenido_Unidad:$('#f3').value,Marca:$('#f4').value,Codigo_EAN:$('#f5').value.trim(),Lugar_Compra:$('#f6').value,Stock_Minimo:num($('#f7').value)};
+const o=gp(id);if(o)Object.assign(o,r);else S.p.push({...r,Cantidad_Actual:0,En_Lista_Compras:false,Comprado:false});
+const nw=!o;if(nw)Object.assign(r,{Cantidad_Actual:0,En_Lista_Compras:false,Comprado:false});$('#dlg').close();q='';$('#q').value='';render();api('prods',{rows:[r]}).then(()=>pf?api('foto',{id,b64:pf,old:o&&o.Foto_URL}):0).catch(e=>alert(e)).then(()=>{pf=null;load()})}
+function borrar(id){if(!confirm('¿Eliminar este producto?'))return;S.p=S.p.filter(p=>p.ID_Producto!=id);$('#dlg').close();render();api('delprod',{id}).catch(e=>alert(e)).then(load)}
+function cierre(){const it=S.p.filter(p=>isL(p)&&p.Comprado===true);if(!it.length)return alert('Tildá al menos un producto comprado.');
+$('#dlg').innerHTML=`<h3 style="margin-top:0">Cerrar compra</h3><label class="f">Monto final total ($)</label><input id="c1" type="number" inputmode="decimal" min="0" autofocus><label class="f">Fecha</label><input id="c2" type="date" value="${today()}"><label class="f">Lugar de la compra</label><select id="c3" onchange="document.querySelectorAll('.cl').forEach(s=>s.value=this.value)">${opt(S.l,it[0].Lugar_Compra)}</select><h3>Dónde compraste cada uno</h3>${it.map(p=>`<div class="r"><span>${E(p.Nombre)} ×${num(p.Cantidad_A_Comprar)||1}</span><select class="cl" data-i="${p.ID_Producto}" style="width:120px">${opt(S.l,p.Lugar_Compra)}</select></div>`).join('')}<button class="btn" onclick="cerrar()">Guardar compra</button><button class="btn s" onclick="$('#dlg').close()">Cancelar</button>`;$('#dlg').showModal()}
+async function cerrar(){const m=num($('#c1').value);if(m<=0)return alert('Cargá el monto total');const fecha=$('#c2').value||today(),id='COMP_'+fecha.replace(/-/g,'')+'_'+Date.now().toString().slice(-5);
+const items=[...document.querySelectorAll('.cl')].map(s=>{const p=gp(s.dataset.i);return{ID:p.ID_Producto,nombre:p.Nombre,grupo:p.Grupo,qty:num(p.Cantidad_A_Comprar)||1,lugar:s.value}});
+try{await api('close',{id,fecha,monto:m,lugar:$('#c3').value,items});$('#dlg').close();cmp=id;tab='an';await load();render()}catch(e){alert(e)}}
+async function nm(t,op,v){let n;if(op!='del'){n=prompt(op=='add'?'Nombre nuevo':'Nuevo nombre',v||'');if(!n)return}else if(!confirm('¿Eliminar “'+v+'”?'))return;
+try{await api('name',{t,op,v:op=='add'?n:v,n});await load();render()}catch(e){alert(e)}}
+function cfg(){U=$('#cu').value.trim();T=$('#ct').value;localStorage.u=U;localStorage.t=T;tab='lista';load()}
+function stop(){clearInterval(cam?.t);cam?.s.getTracks().forEach(x=>x.stop());cam=null;$('#dlg').close()}
+async function scan(){if(!('BarcodeDetector' in window)){const c=prompt('Este navegador no escanea. Escribí el código:');if(c)found(c);return}
+const d=$('#dlg');d.innerHTML='<video id="v" autoplay playsinline muted></video><button class="btn s" onclick="stop()">Cancelar</button>';d.showModal();
+try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}),bd=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128']});$('#v').srcObject=s;
+cam={s,t:setInterval(async()=>{try{const r=await bd.detect($('#v'));if(r.length){const c=r[0].rawValue;stop();found(c)}}catch{}},400)}}catch(e){stop();alert('No pude abrir la cámara')}}
+function found(c){q=c;$('#q').value=c;tab='prod';render()}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+render();load();setInterval(()=>{if(!document.hidden)load()},60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+</script></body></html>
